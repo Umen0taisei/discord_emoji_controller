@@ -398,3 +398,11 @@
   box-shadow: 3px 0 0 #5865f2;
   background: #5865f210;
 }
+
+/* カテゴリタブのドラッグ並び替えインジケーター */
+.dem-cat-tab.dem-cat-drag-over-left {
+  box-shadow: -3px 0 0 #fff;
+}
+.dem-cat-tab.dem-cat-drag-over-right {
+  box-shadow: 3px 0 0 #fff;
+}

@@ -55,8 +55,6 @@
     ['⚡','zap'],['🌙','moon'],['☀️','sunny'],['🌈','rainbow'],
     ['🐱','cat'],['🐶','dog'],['🦊','fox'],['🐸','frog'],['🐧','penguin'],
     ['🍕','pizza'],['🍣','sushi'],['☕','coffee'],['🧋','bubble_tea'],['🍜','ramen'],
-    ['👈','hand_left'],['👆','hand_up'],['👉','hand_right'],['👇','hand_down'],
-    ['😘','kiss'],['','ramen']
   ].map(([ch, name]) => ({
     id: 'u_' + name, name, url: ch, guildName: 'Unicode', unicode: true,
   }));
@@ -110,7 +108,7 @@
   // ── UI構築 ────────────────────────────────────────────────────────────
   function buildPanel() {
     const btn = el('button', { id: 'dem-toggle-btn', title: '絵文字マネージャー' });
-    btn.textContent = '😄';
+    btn.textContent = '😁';
     btn.onclick = togglePanel;
     document.body.appendChild(btn);
 
@@ -208,9 +206,9 @@
     const panel = $('dem-panel');
     panel.classList.toggle('dem-hidden', !state.panelVisible);
     if (state.panelVisible) {
-      // 開くたびに右下の定位置にリセット
+      // 開くたびに右下の定位置にリセット（画面外に出るのを防ぐ）
       panel.style.right  = '8px';
-      panel.style.bottom = '90px';
+      panel.style.bottom = '120px';
       panel.style.left   = 'auto';
       panel.style.top    = 'auto';
       renderAll();
@@ -226,64 +224,126 @@
     return c ? c.name : '未分類';
   }
 
+  // カテゴリのドラッグ並び替え用フラグ
+  let catDraggingId = null;
+
   function renderCats() {
     const wrap = $('dem-cats');
     wrap.innerHTML = '';
 
     // フィルター選択肢: すべて / 未分類 / 各カテゴリ
-    const tabs = [
-      { id: 'all',      label: 'すべて' },
-      { id: 'uncat',    label: '未分類' },
-      ...state.categories,
+    const fixedTabs = [
+      { id: 'all',   name: 'すべて' },
+      { id: 'uncat', name: '未分類' },
     ];
 
-    tabs.forEach(cat => {
-      let count;
-      if      (cat.id === 'all')   count = state.emojis.length;
-      else if (cat.id === 'uncat') count = state.emojis.filter(e => !state.assignments[e.id]).length;
-      else                          count = state.emojis.filter(e => state.assignments[e.id] === cat.id).length;
-
+    // 固定タブ（すべて・未分類）
+    fixedTabs.forEach(cat => {
+      const count = cat.id === 'all'
+        ? state.emojis.length
+        : state.emojis.filter(e => !state.assignments[e.id]).length;
       const btn = el('button', { className: 'dem-cat-tab' + (state.currentCat === cat.id ? ' dem-active' : '') });
-      btn.textContent = `${cat.id === 'all' ? 'すべて' : cat.id === 'uncat' ? '未分類' : cat.name} (${count})`;
+      btn.textContent = `${cat.name} (${count})`;
       btn.addEventListener('click', () => {
         state.currentCat = cat.id; state.selected.clear();
         renderCats(); renderGrid(); updateFooter();
       });
-
-      // カテゴリタブをドロップターゲットに（'all' と 'uncat' 以外）
-      if (cat.id !== 'all' && cat.id !== 'uncat') {
-        btn.addEventListener('dragover', e => {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
-          btn.classList.add('dem-drop-hover');
-        });
-        btn.addEventListener('dragleave', () => btn.classList.remove('dem-drop-hover'));
-        btn.addEventListener('drop', e => {
-          e.preventDefault();
-          btn.classList.remove('dem-drop-hover');
-          if (!dragIds) return;
-          dragIds.forEach(id => { state.assignments[id] = cat.id; });
-          saveAssigns();
-          state.selected.clear();
-          dragIds = null;
-          renderAll();
-        });
-      }
       // 「未分類」タブへのドロップ → 割り当て解除
       if (cat.id === 'uncat') {
-        btn.addEventListener('dragover', e => { e.preventDefault(); btn.classList.add('dem-drop-hover'); });
+        btn.addEventListener('dragover', e => {
+          if (catDraggingId) return; // カテゴリ並び替え中は無視
+          e.preventDefault(); btn.classList.add('dem-drop-hover');
+        });
         btn.addEventListener('dragleave', () => btn.classList.remove('dem-drop-hover'));
         btn.addEventListener('drop', e => {
-          e.preventDefault();
-          btn.classList.remove('dem-drop-hover');
+          e.preventDefault(); btn.classList.remove('dem-drop-hover');
           if (!dragIds) return;
           dragIds.forEach(id => { delete state.assignments[id]; });
-          saveAssigns();
-          state.selected.clear();
-          dragIds = null;
-          renderAll();
+          saveAssigns(); state.selected.clear(); dragIds = null; renderAll();
         });
       }
+      wrap.appendChild(btn);
+    });
+
+    // カスタムカテゴリタブ（ドラッグ並び替え対応）
+    state.categories.forEach(cat => {
+      const count = state.emojis.filter(e => state.assignments[e.id] === cat.id).length;
+      const btn = el('button', {
+        className: 'dem-cat-tab' + (state.currentCat === cat.id ? ' dem-active' : ''),
+        draggable: true,
+      });
+      btn.textContent = `${cat.name} (${count})`;
+
+      btn.addEventListener('click', () => {
+        if (catDraggingId) return; // ドラッグ後の誤クリック防止
+        state.currentCat = cat.id; state.selected.clear();
+        renderCats(); renderGrid(); updateFooter();
+      });
+
+      // ── カテゴリタブ自体のドラッグ（並び替え） ──
+      btn.addEventListener('dragstart', e => {
+        catDraggingId = cat.id;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', ''); // Firefox対策
+        setTimeout(() => btn.style.opacity = '0.4', 0);
+      });
+      btn.addEventListener('dragend', () => {
+        btn.style.opacity = '';
+        catDraggingId = null;
+        wrap.querySelectorAll('.dem-cat-drag-over-left, .dem-cat-drag-over-right')
+          .forEach(el => el.classList.remove('dem-cat-drag-over-left', 'dem-cat-drag-over-right'));
+      });
+
+      // ── 別のカテゴリタブの上にドラッグ → 並び替えプレビュー ──
+      btn.addEventListener('dragover', e => {
+        e.preventDefault();
+        if (!catDraggingId || catDraggingId === cat.id) return;
+        // 絵文字のドロップは弾く
+        if (dragIds) return;
+        e.dataTransfer.dropEffect = 'move';
+        wrap.querySelectorAll('.dem-cat-drag-over-left, .dem-cat-drag-over-right')
+          .forEach(el => el.classList.remove('dem-cat-drag-over-left', 'dem-cat-drag-over-right'));
+        const rect   = btn.getBoundingClientRect();
+        const isLeft = e.clientX < rect.left + rect.width / 2;
+        btn.classList.add(isLeft ? 'dem-cat-drag-over-left' : 'dem-cat-drag-over-right');
+      });
+      btn.addEventListener('dragleave', () => {
+        btn.classList.remove('dem-cat-drag-over-left', 'dem-cat-drag-over-right');
+      });
+      btn.addEventListener('drop', e => {
+        e.preventDefault();
+        const insertAfter = btn.classList.contains('dem-cat-drag-over-right');
+        btn.classList.remove('dem-cat-drag-over-left', 'dem-cat-drag-over-right');
+        if (!catDraggingId || catDraggingId === cat.id || dragIds) return;
+
+        // state.categories から移動元を取り出してターゲットの前後に挿入
+        const fromIdx = state.categories.findIndex(c => c.id === catDraggingId);
+        if (fromIdx === -1) return;
+        const [moving] = state.categories.splice(fromIdx, 1);
+        let toIdx = state.categories.findIndex(c => c.id === cat.id);
+        state.categories.splice(insertAfter ? toIdx + 1 : toIdx, 0, moving);
+
+        saveCats();
+        catDraggingId = null;
+        renderCats();
+      });
+
+      // ── 絵文字のドロップターゲット ──
+      btn.addEventListener('dragover', e => {
+        if (catDraggingId || !dragIds) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        btn.classList.add('dem-drop-hover');
+      });
+      btn.addEventListener('dragleave', () => btn.classList.remove('dem-drop-hover'));
+      btn.addEventListener('drop', e => {
+        if (catDraggingId || !dragIds) return;
+        e.preventDefault();
+        btn.classList.remove('dem-drop-hover');
+        dragIds.forEach(id => { state.assignments[id] = cat.id; });
+        saveAssigns(); state.selected.clear(); dragIds = null; renderAll();
+      });
+
       wrap.appendChild(btn);
     });
 
