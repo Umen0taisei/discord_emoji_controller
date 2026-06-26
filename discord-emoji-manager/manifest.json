@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Discord Emoji Manager",
-  "version": "1.4.1",
+  "version": "1.4.4",
   "description": "Discordの絵文字をカテゴリ管理・ソートできる拡張機能",
   "permissions": ["storage"],
   "content_scripts": [

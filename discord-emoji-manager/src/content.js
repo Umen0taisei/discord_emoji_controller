@@ -110,7 +110,7 @@
   // ── UI構築 ────────────────────────────────────────────────────────────
   function buildPanel() {
     const btn = el('button', { id: 'dem-toggle-btn', title: '絵文字マネージャー' });
-    btn.textContent = '⭐';
+    btn.textContent = '😄';
     btn.onclick = togglePanel;
     document.body.appendChild(btn);
 
@@ -205,8 +205,16 @@
 
   function togglePanel() {
     state.panelVisible = !state.panelVisible;
-    $('dem-panel').classList.toggle('dem-hidden', !state.panelVisible);
-    if (state.panelVisible) renderAll();
+    const panel = $('dem-panel');
+    panel.classList.toggle('dem-hidden', !state.panelVisible);
+    if (state.panelVisible) {
+      // 開くたびに右下の定位置にリセット
+      panel.style.right  = '8px';
+      panel.style.bottom = '56px';
+      panel.style.left   = 'auto';
+      panel.style.top    = 'auto';
+      renderAll();
+    }
   }
 
   // ── レンダリング ──────────────────────────────────────────────────────
