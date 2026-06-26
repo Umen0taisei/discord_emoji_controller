@@ -210,7 +210,7 @@
     if (state.panelVisible) {
       // 開くたびに右下の定位置にリセット
       panel.style.right  = '8px';
-      panel.style.bottom = '56px';
+      panel.style.bottom = '90px';
       panel.style.left   = 'auto';
       panel.style.top    = 'auto';
       renderAll();
