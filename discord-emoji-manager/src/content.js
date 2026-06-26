@@ -55,6 +55,8 @@
     ['⚡','zap'],['🌙','moon'],['☀️','sunny'],['🌈','rainbow'],
     ['🐱','cat'],['🐶','dog'],['🦊','fox'],['🐸','frog'],['🐧','penguin'],
     ['🍕','pizza'],['🍣','sushi'],['☕','coffee'],['🧋','bubble_tea'],['🍜','ramen'],
+    ['👈','hand_left'],['👆','hand_up'],['👉','hand_right'],['👇','hand_down'],
+    ['😘','kiss'],['','ramen']
   ].map(([ch, name]) => ({
     id: 'u_' + name, name, url: ch, guildName: 'Unicode', unicode: true,
   }));
