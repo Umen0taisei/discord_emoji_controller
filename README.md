@@ -1,0 +1,2 @@
+# discord_emoji_controller
+discordの絵文字機能についての拡張機能
