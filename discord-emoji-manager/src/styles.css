@@ -1,0 +1,399 @@
+/* Discord Emoji Manager — injected styles */
+
+#dem-panel {
+  position: fixed;
+  bottom: 56px;
+  right: 8px;
+  width: 360px;
+  height: 480px;
+  background: #313338;
+  border: 1px solid #1e1f22;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+  z-index: 9999;
+  font-family: 'gg sans', 'Noto Sans', sans-serif;
+  font-size: 14px;
+  color: #dbdee1;
+  overflow: hidden;
+  user-select: none;
+}
+
+#dem-panel.dem-hidden {
+  display: none !important;
+}
+
+/* Header */
+#dem-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #2b2d31;
+  border-bottom: 1px solid #1e1f22;
+  cursor: move;
+  flex-shrink: 0;
+}
+
+#dem-header-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f2f3f5;
+  flex: 1;
+}
+
+#dem-close-btn {
+  background: none;
+  border: none;
+  color: #80848e;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-size: 18px;
+}
+#dem-close-btn:hover { color: #dbdee1; background: #404249; }
+
+/* Search + Sort toolbar */
+#dem-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #2b2d31;
+  border-bottom: 1px solid #1e1f22;
+  flex-shrink: 0;
+}
+
+#dem-search {
+  flex: 1;
+  background: #1e1f22;
+  border: 1px solid #111214;
+  border-radius: 6px;
+  padding: 5px 10px;
+  color: #dbdee1;
+  font-size: 13px;
+  outline: none;
+}
+#dem-search::placeholder { color: #80848e; }
+#dem-search:focus { border-color: #5865f2; }
+
+#dem-sort-btn {
+  background: #1e1f22;
+  border: 1px solid #111214;
+  border-radius: 6px;
+  color: #b5bac1;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+#dem-sort-btn:hover { background: #404249; color: #dbdee1; }
+
+/* Category tabs */
+#dem-cats {
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px 0;
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+}
+#dem-cats::-webkit-scrollbar { display: none; }
+
+.dem-cat-tab {
+  background: none;
+  border: 1px solid #404249;
+  border-radius: 20px;
+  color: #b5bac1;
+  padding: 3px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.1s;
+}
+.dem-cat-tab:hover { background: #404249; color: #dbdee1; }
+.dem-cat-tab.dem-active {
+  background: #5865f2;
+  border-color: #5865f2;
+  color: #fff;
+}
+
+.dem-emoji-item.dem-drag-over {
+  outline: 2px solid #5865f2;
+  background: #5865f230;
+}
+
+.dem-cat-tab.dem-drop-hover {
+  background: #5865f2 !important;
+  border-color: #fff !important;
+  color: #fff !important;
+  transform: scale(1.08);
+  transition: transform 0.1s;
+}
+.dem-cat-add-tab {
+  background: none;
+  border: 1px dashed #404249;
+  border-radius: 20px;
+  color: #80848e;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dem-cat-add-tab:hover { border-color: #80848e; color: #b5bac1; }
+
+/* Emoji grid */
+#dem-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 4px;
+  align-content: start;
+  scrollbar-width: thin;
+  scrollbar-color: #404249 transparent;
+}
+
+.dem-emoji-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s;
+  position: relative;
+}
+.dem-emoji-item:hover { background: #404249; }
+.dem-emoji-item.dem-selected { background: #5865f220; outline: 1px solid #5865f2; }
+
+.dem-emoji-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+.dem-emoji-static {
+  font-size: 24px;
+  line-height: 28px;
+  text-align: center;
+  width: 28px;
+  height: 28px;
+}
+
+.dem-emoji-name {
+  font-size: 9px;
+  color: #80848e;
+  margin-top: 2px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.dem-empty {
+  grid-column: 1/-1;
+  text-align: center;
+  color: #80848e;
+  font-size: 13px;
+  padding: 32px 0;
+}
+
+/* Footer */
+#dem-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #2b2d31;
+  border-top: 1px solid #1e1f22;
+  flex-shrink: 0;
+}
+
+#dem-sel-info {
+  flex: 1;
+  font-size: 12px;
+  color: #80848e;
+}
+
+.dem-footer-btn {
+  background: #4f545c;
+  border: none;
+  border-radius: 6px;
+  color: #dbdee1;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  display: none;
+}
+.dem-footer-btn:hover { background: #686d73; }
+.dem-footer-btn.dem-visible { display: block; }
+.dem-footer-btn.dem-primary {
+  background: #5865f2;
+  color: #fff;
+}
+.dem-footer-btn.dem-primary:hover { background: #4752c4; }
+
+/* Toggle button — right edge, above the emoji picker button area */
+#dem-toggle-btn {
+  position: fixed;
+  bottom: 60px;
+  right: 8px;
+  width: 36px;
+  height: 36px;
+  background: #5865f2;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  transition: background 0.1s, transform 0.1s;
+}
+#dem-toggle-btn:hover { background: #4752c4; transform: scale(1.05); }
+
+/* Category move dropdown */
+#dem-move-dropdown {
+  position: absolute;
+  bottom: 44px;
+  right: 10px;
+  background: #2b2d31;
+  border: 1px solid #1e1f22;
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 10000;
+  min-width: 160px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  display: none;
+}
+#dem-move-dropdown.dem-visible { display: block; }
+.dem-move-option {
+  padding: 7px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #dbdee1;
+}
+.dem-move-option:hover { background: #404249; }
+
+/* New category modal */
+#dem-modal-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 10001;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+#dem-modal-bg.dem-visible { display: flex; }
+#dem-modal {
+  background: #313338;
+  border: 1px solid #1e1f22;
+  border-radius: 12px;
+  padding: 20px;
+  width: 300px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+#dem-modal h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f2f3f5;
+  margin-bottom: 12px;
+}
+#dem-modal input {
+  width: 100%;
+  background: #1e1f22;
+  border: 1px solid #111214;
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: #dbdee1;
+  font-size: 13px;
+  outline: none;
+  margin-bottom: 14px;
+}
+#dem-modal input:focus { border-color: #5865f2; }
+#dem-modal-btns {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.dem-modal-btn {
+  padding: 7px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+}
+.dem-modal-btn.cancel { background: #4f545c; color: #dbdee1; }
+.dem-modal-btn.cancel:hover { background: #686d73; }
+.dem-modal-btn.ok { background: #5865f2; color: #fff; }
+.dem-modal-btn.ok:hover { background: #4752c4; }
+
+/* ── 情報バー（選択中カテゴリ表示） ── */
+#dem-info-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  background: #23252a;
+  border-bottom: 1px solid #1e1f22;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+#dem-info-bar.dem-hidden { display: none; }
+.dem-info-label { color: #80848e; margin-right: 2px; }
+.dem-info-tag {
+  background: #5865f230;
+  border: 1px solid #5865f260;
+  color: #b5bac1;
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+
+/* ── 絵文字カテゴリバッジ ── */
+.dem-emoji-badge {
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #5865f2;
+  color: #fff;
+  font-size: 8px;
+  padding: 0 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+  max-width: 52px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  z-index: 1;
+}
+.dem-emoji-item { position: relative; padding-bottom: 10px; }
+
+/* ── ドラッグ並び替えインジケーター（左に挿入） ── */
+.dem-emoji-item.dem-drag-over {
+  box-shadow: -3px 0 0 #5865f2;
+  background: #5865f210;
+}
+/* ── ドラッグ並び替えインジケーター（右に挿入） ── */
+.dem-emoji-item.dem-drag-over-after {
+  box-shadow: 3px 0 0 #5865f2;
+  background: #5865f210;
+}

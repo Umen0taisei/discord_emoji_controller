@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Discord Emoji Manager",
+  "version": "1.0.0",
+  "description": "Discordの絵文字をカテゴリ管理・ソートできる拡張機能",
+  "permissions": ["storage"],
+  "content_scripts": [
+    {
+      "matches": ["https://discord.com/*"],
+      "js": ["src/content.js"],
+      "css": ["src/styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
