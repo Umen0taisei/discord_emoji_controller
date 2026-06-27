@@ -117,12 +117,34 @@
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.1s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .dem-cat-tab:hover { background: #404249; color: #dbdee1; }
 .dem-cat-tab.dem-active {
   background: #5865f2;
   border-color: #5865f2;
   color: #fff;
+}
+.dem-cat-label { pointer-events: none; }
+.dem-cat-delete {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 16px;
+  padding: 0;
+  opacity: 0.65;
+}
+.dem-cat-delete:hover {
+  background: rgba(237,66,69,0.18);
+  color: #ff9aa2;
+  opacity: 1;
 }
 
 .dem-emoji-item.dem-drag-over {
@@ -505,15 +527,47 @@
   margin-bottom: 8px;
   min-height: 28px;
 }
-.dem-tmpl-emoji { font-size: 22px; line-height: 1; }
+.dem-tmpl-emoji {
+  position: relative;
+  font-size: 22px;
+  line-height: 1;
+  cursor: grab;
+  padding: 2px;
+  border-radius: 6px;
+}
+.dem-tmpl-emoji:hover { background: #404249; }
+.dem-tmpl-emoji.dem-dragging { opacity: 0.45; }
+.dem-tmpl-emoji.dem-tmpl-drag-over { outline: 2px solid #5865f2; }
 .dem-tmpl-emoji img {
   width: 20px;
   height: 20px;
   vertical-align: middle;
   pointer-events: none;
 }
-.dem-tmpl-insert {
-  width: 100%;
+.dem-tmpl-emoji-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 50%;
+  background: #ed4245;
+  color: #fff;
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 14px;
+  padding: 0;
+  display: none;
+}
+.dem-tmpl-emoji:hover .dem-tmpl-emoji-remove { display: block; }
+.dem-tmpl-actions {
+  display: flex;
+  gap: 6px;
+}
+.dem-tmpl-insert,
+.dem-tmpl-add-selected {
+  flex: 1;
   padding: 5px;
   background: #5865f2;
   border: none;
@@ -523,4 +577,13 @@
   cursor: pointer;
 }
 .dem-tmpl-insert:hover { background: #4752c4; }
+.dem-tmpl-add-selected {
+  background: #4f545c;
+  color: #dbdee1;
+}
+.dem-tmpl-add-selected:hover:not(:disabled) { background: #686d73; }
+.dem-tmpl-add-selected:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
  

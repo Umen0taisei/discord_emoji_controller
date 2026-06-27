@@ -392,13 +392,7 @@ function makeDraggableBtn(btn) {
     const emojis = Array.from(state.selected)
       .map(id => state.emojis.find(e => e.id === id))
       .filter(Boolean)
-      .map(e => ({
-        id: e.id,
-        name: e.name,
-        url: e.url,
-        guildName: e.guildName,
-        unicode: e.unicode,
-      }));
+      .map(snapshotEmoji);
     if (emojis.length === 0) return;
     state.templates.push({
       id:     'tmpl_' + Date.now(),
@@ -437,10 +431,12 @@ function makeDraggableBtn(btn) {
       nameRow.appendChild(nameEl); nameRow.appendChild(delBtn);
 
       const preview = el('div', { className: 'dem-tmpl-preview' });
-      tmpl.emojis.forEach(saved => {
+      tmpl.emojis.forEach((saved, idx) => {
         const emoji = resolveTemplateEmoji(saved);
         if (!emoji) return;
         const s = el('span', { className: 'dem-tmpl-emoji', title: emoji.name });
+        s.draggable = true;
+        s.dataset.idx = idx;
         if (emoji.unicode) {
           s.textContent = emoji.url;
         } else {
@@ -448,9 +444,41 @@ function makeDraggableBtn(btn) {
           img.draggable = false;
           s.appendChild(img);
         }
+        const removeBtn = el('button', { className: 'dem-tmpl-emoji-remove', title: '削除' });
+        removeBtn.textContent = '×';
+        removeBtn.onmousedown = e => e.stopPropagation();
+        removeBtn.onclick = e => {
+          e.stopPropagation();
+          tmpl.emojis.splice(idx, 1);
+          saveTemplates(); renderTemplates();
+        };
+        s.appendChild(removeBtn);
+        s.addEventListener('dragstart', e => {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', String(idx));
+          s.classList.add('dem-dragging');
+        });
+        s.addEventListener('dragend', () => s.classList.remove('dem-dragging'));
+        s.addEventListener('dragover', e => {
+          e.preventDefault();
+          preview.querySelectorAll('.dem-tmpl-drag-over').forEach(el => el.classList.remove('dem-tmpl-drag-over'));
+          s.classList.add('dem-tmpl-drag-over');
+        });
+        s.addEventListener('dragleave', () => s.classList.remove('dem-tmpl-drag-over'));
+        s.addEventListener('drop', e => {
+          e.preventDefault();
+          s.classList.remove('dem-tmpl-drag-over');
+          const from = Number(e.dataTransfer.getData('text/plain'));
+          const to = idx;
+          if (!Number.isInteger(from) || from === to) return;
+          const [moving] = tmpl.emojis.splice(from, 1);
+          tmpl.emojis.splice(to, 0, moving);
+          saveTemplates(); renderTemplates();
+        });
         preview.appendChild(s);
       });
 
+      const controls = el('div', { className: 'dem-tmpl-actions' });
       const insertBtn = el('button', { className: 'dem-tmpl-insert' });
       insertBtn.textContent = '挿入';
       insertBtn.onclick = () => {
@@ -459,17 +487,55 @@ function makeDraggableBtn(btn) {
           if (emoji) insertEmoji(emoji);
         });
       };
+      const addBtn = el('button', { className: 'dem-tmpl-add-selected' });
+      addBtn.textContent = '選択中を追加';
+      addBtn.disabled = state.selected.size === 0;
+      addBtn.onclick = () => {
+        const existing = new Set(tmpl.emojis.map(saved => typeof saved === 'string' ? saved : saved.id));
+        const additions = Array.from(state.selected)
+          .map(id => state.emojis.find(e => e.id === id))
+          .filter(e => e && !existing.has(e.id))
+          .map(snapshotEmoji);
+        if (additions.length === 0) return;
+        tmpl.emojis.push(...additions);
+        saveTemplates(); renderTemplates();
+      };
+      controls.appendChild(insertBtn);
+      controls.appendChild(addBtn);
 
       card.appendChild(nameRow);
       card.appendChild(preview);
-      card.appendChild(insertBtn);
+      card.appendChild(controls);
       pane.appendChild(card);
     });
+  }
+
+  function snapshotEmoji(e) {
+    return {
+      id: e.id,
+      name: e.name,
+      url: e.url,
+      guildName: e.guildName,
+      unicode: e.unicode,
+    };
   }
 
   function resolveTemplateEmoji(saved) {
     if (typeof saved === 'string') return state.emojis.find(e => e.id === saved);
     return state.emojis.find(e => e.id === saved.id) || saved;
+  }
+
+  function deleteCategory(catId) {
+    state.categories = state.categories.filter(c => c.id !== catId);
+    Object.keys(state.tags).forEach(emojiId => {
+      state.tags[emojiId] = getCategoryIds(emojiId).filter(id => id !== catId);
+      if (state.tags[emojiId].length === 0) delete state.tags[emojiId];
+    });
+    Object.keys(state.assignments).forEach(emojiId => {
+      if (state.assignments[emojiId] === catId) delete state.assignments[emojiId];
+    });
+    if (state.currentCat === catId) state.currentCat = 'all';
+    saveCats(); saveTags(); saveAssigns(); renderAll();
   }
 
   // カテゴリのドラッグ並び替え用フラグ
@@ -522,7 +588,17 @@ function makeDraggableBtn(btn) {
         className: 'dem-cat-tab' + (state.currentCat === cat.id ? ' dem-active' : ''),
         draggable: true,
       });
-      btn.textContent = `${cat.name} (${count})`;
+      const label = el('span', { className: 'dem-cat-label' });
+      label.textContent = `${cat.name} (${count})`;
+      const delBtn = el('button', { className: 'dem-cat-delete', title: 'カテゴリを削除' });
+      delBtn.textContent = '×';
+      delBtn.onmousedown = e => e.stopPropagation();
+      delBtn.onclick = e => {
+        e.stopPropagation();
+        deleteCategory(cat.id);
+      };
+      btn.appendChild(label);
+      btn.appendChild(delBtn);
 
       btn.addEventListener('click', () => {
         if (catDraggingId) return; // ドラッグ後の誤クリック防止
