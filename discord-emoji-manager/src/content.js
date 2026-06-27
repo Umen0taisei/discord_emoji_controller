@@ -33,6 +33,7 @@
   let modalMode = 'category';
   let panelHome = null;
   let panelEl = null;
+  let reactionPickerEl = null;
 
   // ── ストレージ ─────────────────────────────────────────────────────────
   function loadStorage() {
@@ -87,6 +88,21 @@
   }
 
   // ── Unicode絵文字一覧 ───────────────────────────────────────────────────
+  const UNICODE_REACTION_NAMES = {
+    smiling_hearts: 'smiling_face_with_3_hearts',
+    rofl: 'rolling_on_the_floor_laughing',
+    nauseated: 'nauseated_face',
+    partying: 'partying_face',
+    thumbsup: 'thumbs_up',
+    thumbsdown: 'thumbs_down',
+    moon: 'crescent_moon',
+    hand_left: 'point_left',
+    hand_up: 'point_up_2',
+    hand_right: 'point_right',
+    hand_down: 'point_down',
+    kiss: 'kissing_heart',
+  };
+
   const UNICODE_EMOJIS = [
     ['😀','grinning'],['😂','joy'],['🤣','rofl'],['😊','blush'],['😍','heart_eyes'],
     ['🥰','smiling_hearts'],['😎','sunglasses'],['🤔','thinking'],['😭','sob'],
@@ -103,9 +119,18 @@
     ['🍕','pizza'],['🍣','sushi'],['☕','coffee'],['🧋','bubble_tea'],['🍜','ramen'],
     ['👈','hand_left'],['👆','hand_up'],['👉','hand_right'],['👇','hand_down'],
     ['😘','kiss'],
-  ].map(([ch, name]) => ({
-    id: 'u_' + name, name, url: ch, guildName: 'Unicode', unicode: true,
-  }));
+  ].map(([ch, name]) => {
+    const reactionName = UNICODE_REACTION_NAMES[name] || name;
+    return {
+      id: 'u_' + name,
+      name,
+      url: ch,
+      guildName: 'Unicode',
+      unicode: true,
+      reactionName,
+      aliases: reactionName === name ? [] : [reactionName],
+    };
+  });
 
   // ── 絵文字収集 ─────────────────────────────────────────────────────────
   function collectCustomFromDOM() {
@@ -278,12 +303,21 @@
     const panel = getPanel();
     const picker = findEmojiPicker();
     if (!panel || !picker || picker.contains(panel)) return;
+    if (reactionPickerEl && reactionPickerEl !== picker) {
+      reactionPickerEl.classList.remove('dem-native-picker-muted');
+    }
+    picker.classList.add('dem-native-picker-muted');
+    reactionPickerEl = picker;
     if (!panelHome) panelHome = panel.parentNode || document.body;
     picker.appendChild(panel);
   }
 
   function restorePanelHome() {
     const panel = getPanel();
+    if (reactionPickerEl) {
+      reactionPickerEl.classList.remove('dem-native-picker-muted');
+      reactionPickerEl = null;
+    }
     if (!panel || !panelHome || panel.parentNode === panelHome) return;
     panelHome.appendChild(panel);
   }
@@ -489,6 +523,19 @@ function makeDraggableBtn(btn) {
     return `${names[0]} +${names.length - 1}`;
   }
 
+  function getEmojiSearchText(emoji) {
+    return [
+      emoji.name,
+      emoji.reactionName,
+      emoji.guildName,
+      ...(emoji.aliases || []),
+    ].filter(Boolean).join(' ').toLowerCase();
+  }
+
+  function getReactionSearchName(emoji) {
+    return emoji.reactionName || emoji.name;
+  }
+
   function toggleTagDropdown() {
     const dd = $('dem-tag-dropdown');
     dd.classList.toggle('dem-visible');
@@ -661,6 +708,8 @@ function makeDraggableBtn(btn) {
       url: e.url,
       guildName: e.guildName,
       unicode: e.unicode,
+      reactionName: e.reactionName,
+      aliases: e.aliases || [],
     };
   }
 
@@ -830,7 +879,7 @@ function makeDraggableBtn(btn) {
       ...state.emojis.filter(e => !state.emojiOrder.includes(e.id)),
     ];
     let list = ordered.filter(e => {
-      if (state.search && !e.name.toLowerCase().includes(state.search) && !e.guildName.toLowerCase().includes(state.search)) return false;
+      if (state.search && !getEmojiSearchText(e).includes(state.search)) return false;
       if (state.currentCat === 'all')   return true;
       if (state.currentCat === 'uncat') return getCategoryIds(e.id).length === 0;
       return getCategoryIds(e.id).includes(state.currentCat);
@@ -1056,7 +1105,7 @@ function makeDraggableBtn(btn) {
     if (!searchInput) return;
   
     // 検索欄に絵文字名を入力してReactのイベントを発火
-    const name = emoji.name;
+    const name = getReactionSearchName(emoji);
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
       window.HTMLInputElement.prototype, 'value'
     ).set;

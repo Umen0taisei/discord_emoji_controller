@@ -595,3 +595,10 @@
 #dem-panel.dem-reaction-mode #dem-header-title {
   color: #7289da;
 }
+.dem-native-picker-muted * {
+  pointer-events: none !important;
+}
+.dem-native-picker-muted #dem-panel,
+.dem-native-picker-muted #dem-panel * {
+  pointer-events: auto !important;
+}
