@@ -21,8 +21,7 @@
     search:       '',
     panelVisible: false,
     tags:         {},   // emojiId -> categoryId[]
-    templates:    [],   // { id, name, emojis: id[] }[]
-    catSearch:    '',
+    templates:    [],   // { id, name, emojis: (id | emoji)[] }[]
     activeTab:    'emoji',
   };
 
@@ -39,6 +38,7 @@
         if (res[S_ORDER])     state.emojiOrder  = res[S_ORDER];
         if (res[S_TAGS])      state.tags        = res[S_TAGS];
         if (res[S_TEMPLATES]) state.templates   = res[S_TEMPLATES];
+        migrateAssignmentsToMemberships();
         resolve(res[S_POS] || null);
       });
     });
@@ -49,6 +49,37 @@
   const savePos     = (x,y) => chrome.storage.local.set({ [S_POS]: {x,y} });
   const saveTags      = () => chrome.storage.local.set({ [S_TAGS]:      state.tags      });
   const saveTemplates = () => chrome.storage.local.set({ [S_TEMPLATES]: state.templates });
+
+  function migrateAssignmentsToMemberships() {
+    let changed = false;
+    Object.entries(state.assignments).forEach(([emojiId, catId]) => {
+      if (!catId) return;
+      if (!state.tags[emojiId]) state.tags[emojiId] = [];
+      if (!state.tags[emojiId].includes(catId)) {
+        state.tags[emojiId].push(catId);
+        changed = true;
+      }
+    });
+    if (changed) saveTags();
+    if (Object.keys(state.assignments).length > 0) {
+      state.assignments = {};
+      saveAssigns();
+    }
+  }
+
+  function getCategoryIds(emojiId) {
+    return state.tags[emojiId] || [];
+  }
+
+  function addCategory(emojiId, catId) {
+    if (!state.tags[emojiId]) state.tags[emojiId] = [];
+    if (!state.tags[emojiId].includes(catId)) state.tags[emojiId].push(catId);
+  }
+
+  function clearCategories(emojiId) {
+    delete state.tags[emojiId];
+    delete state.assignments[emojiId];
+  }
 
   // ── Unicode絵文字一覧 ───────────────────────────────────────────────────
   const UNICODE_EMOJIS = [
@@ -139,20 +170,15 @@
         <input id="dem-search" type="text" placeholder="絵文字を検索...">
         <button id="dem-sort-btn">↕ カスタム順</button>
       </div>
-      <div id="dem-cat-search-wrap">
-        <input id="dem-cat-search" type="text" placeholder="カテゴリを絞り込む...">
-      </div>
       <div id="dem-cats"></div>
       <div id="dem-info-bar" class="dem-hidden"></div>
       <div id="dem-grid"></div>
       <div id="dem-footer">
-        <span id="dem-sel-info">クリックで挿入 / ドラッグで並び替え・移動</span>
+        <span id="dem-sel-info">クリックで挿入 / ドラッグで並び替え・所属追加</span>
         <button class="dem-footer-btn" id="dem-tag-btn">＋所属 ▾</button>        
-        <button class="dem-footer-btn" id="dem-move-btn">移動 ▾</button>
         <button class="dem-footer-btn" id="dem-tmpl-save-btn">📋保存</button>
         <button class="dem-footer-btn dem-primary" id="dem-desel-btn">解除</button>
       </div>
-      <div id="dem-move-dropdown"></div>
       <div id="dem-tag-dropdown"></div>
     </div>
     <div id="dem-tmpl-pane" class="dem-hidden">
@@ -188,21 +214,17 @@
     $('dem-modal-cancel').onclick = closeModal;
     $('dem-modal-ok').onclick     = createCategory;
     $('dem-sort-btn').onclick     = cycleSort;
-    $('dem-move-btn').onclick     = toggleMoveDropdown;
     $('dem-tag-btn').onclick      = toggleTagDropdown;
     $('dem-tmpl-save-btn').onclick = saveTemplate;
     $('dem-desel-btn').onclick    = () => { state.selected.clear(); renderGrid(); updateFooter(); };
     $('dem-modal-input').onkeydown = e => { if (e.key === 'Enter') createCategory(); };
     $('dem-search').oninput    = e => { state.search    = e.target.value.toLowerCase(); renderGrid(); };
-    $('dem-cat-search').oninput = e => { state.catSearch = e.target.value.toLowerCase(); renderCats(); };
 
     $('dem-tab-emoji').onclick = () => switchTab('emoji');
     $('dem-tab-tmpl').onclick  = () => switchTab('template');
 
     document.addEventListener('click', e => {
-      const dd  = $('dem-move-dropdown');
       const tdd = $('dem-tag-dropdown');
-      if (dd  && !dd.contains(e.target)  && e.target !== $('dem-move-btn')) dd.classList.remove('dem-visible');
       if (tdd && !tdd.contains(e.target) && e.target !== $('dem-tag-btn'))  tdd.classList.remove('dem-visible');
     });
   }
@@ -315,6 +337,13 @@ function makeDraggableBtn(btn) {
     return c ? c.name : '未分類';
   }
 
+  function getMembershipLabel(emojiId) {
+    const names = getCategoryIds(emojiId).map(getCatName);
+    if (names.length === 0) return '未分類';
+    if (names.length === 1) return names[0];
+    return `${names[0]} +${names.length - 1}`;
+  }
+
   function toggleTagDropdown() {
     const dd = $('dem-tag-dropdown');
     dd.classList.toggle('dem-visible');
@@ -322,13 +351,13 @@ function makeDraggableBtn(btn) {
     dd.innerHTML = '';
 
     const title = el('div', { className: 'dem-move-option dem-dropdown-title' });
-    title.textContent = '追加タグ（複数選択可）';
+    title.textContent = '所属カテゴリ（複数選択可）';
     dd.appendChild(title);
 
     state.categories.forEach(cat => {
       const row = el('div', { className: 'dem-move-option dem-tag-row' });
       const allHave = state.selected.size > 0 && Array.from(state.selected).every(id =>
-        (state.tags[id] || []).includes(cat.id)
+        getCategoryIds(id).includes(cat.id)
       );
       const check = el('span', { className: 'dem-tag-check' });
       check.textContent = allHave ? '☑' : '☐';
@@ -337,11 +366,11 @@ function makeDraggableBtn(btn) {
       row.appendChild(check); row.appendChild(label);
       row.onclick = () => {
         state.selected.forEach(id => {
-          if (!state.tags[id]) state.tags[id] = [];
           if (allHave) {
-            state.tags[id] = state.tags[id].filter(t => t !== cat.id);
+            state.tags[id] = getCategoryIds(id).filter(t => t !== cat.id);
+            if (state.tags[id].length === 0) delete state.tags[id];
           } else {
-            if (!state.tags[id].includes(cat.id)) state.tags[id].push(cat.id);
+            addCategory(id, cat.id);
           }
         });
         saveTags();
@@ -357,10 +386,21 @@ function makeDraggableBtn(btn) {
     if (state.selected.size === 0) return;
     const name = prompt('テンプレート名を入力:');
     if (!name) return;
+    const emojis = Array.from(state.selected)
+      .map(id => state.emojis.find(e => e.id === id))
+      .filter(Boolean)
+      .map(e => ({
+        id: e.id,
+        name: e.name,
+        url: e.url,
+        guildName: e.guildName,
+        unicode: e.unicode,
+      }));
+    if (emojis.length === 0) return;
     state.templates.push({
       id:     'tmpl_' + Date.now(),
       name,
-      emojis: Array.from(state.selected),
+      emojis,
     });
     saveTemplates();
     state.selected.clear();
@@ -394,15 +434,14 @@ function makeDraggableBtn(btn) {
       nameRow.appendChild(nameEl); nameRow.appendChild(delBtn);
 
       const preview = el('div', { className: 'dem-tmpl-preview' });
-      tmpl.emojis.forEach(id => {
-        const emoji = state.emojis.find(e => e.id === id);
+      tmpl.emojis.forEach(saved => {
+        const emoji = resolveTemplateEmoji(saved);
         if (!emoji) return;
         const s = el('span', { className: 'dem-tmpl-emoji', title: emoji.name });
         if (emoji.unicode) {
           s.textContent = emoji.url;
         } else {
           const img = el('img', { src: emoji.url, alt: emoji.name });
-          img.style.cssText = 'width:20px;height:20px;vertical-align:middle;pointer-events:none';
           img.draggable = false;
           s.appendChild(img);
         }
@@ -412,8 +451,8 @@ function makeDraggableBtn(btn) {
       const insertBtn = el('button', { className: 'dem-tmpl-insert' });
       insertBtn.textContent = '挿入';
       insertBtn.onclick = () => {
-        tmpl.emojis.forEach(id => {
-          const emoji = state.emojis.find(e => e.id === id);
+        tmpl.emojis.forEach(saved => {
+          const emoji = resolveTemplateEmoji(saved);
           if (emoji) insertEmoji(emoji);
         });
       };
@@ -423,6 +462,11 @@ function makeDraggableBtn(btn) {
       card.appendChild(insertBtn);
       pane.appendChild(card);
     });
+  }
+
+  function resolveTemplateEmoji(saved) {
+    if (typeof saved === 'string') return state.emojis.find(e => e.id === saved);
+    return state.emojis.find(e => e.id === saved.id) || saved;
   }
 
   // カテゴリのドラッグ並び替え用フラグ
@@ -438,16 +482,12 @@ function makeDraggableBtn(btn) {
       { id: 'uncat', name: '未分類' },
     ];
 
-    const filteredCats = state.catSearch
-      ? state.categories.filter(c => c.name.toLowerCase().includes(state.catSearch))
-      : state.categories;
-
     // 固定タブ（すべて・未分類）
     fixedTabs.forEach(cat => {
       const count = cat.id === 'all'
         ? state.emojis.length
         : state.emojis.filter(e =>
-          state.assignments[e.id] === cat.id || (state.tags[e.id] || []).includes(cat.id)
+          getCategoryIds(e.id).length === 0
         ).length;
       const btn = el('button', { className: 'dem-cat-tab' + (state.currentCat === cat.id ? ' dem-active' : '') });
       btn.textContent = `${cat.name} (${count})`;
@@ -465,8 +505,8 @@ function makeDraggableBtn(btn) {
         btn.addEventListener('drop', e => {
           e.preventDefault(); btn.classList.remove('dem-drop-hover');
           if (!dragIds) return;
-          dragIds.forEach(id => { delete state.assignments[id]; });
-          saveAssigns(); state.selected.clear(); dragIds = null; renderAll();
+          dragIds.forEach(clearCategories);
+          saveTags(); saveAssigns(); state.selected.clear(); dragIds = null; renderAll();
         });
       }
       wrap.appendChild(btn);
@@ -474,7 +514,7 @@ function makeDraggableBtn(btn) {
 
     // カスタムカテゴリタブ（ドラッグ並び替え対応）
     state.categories.forEach(cat => {
-      const count = state.emojis.filter(e => state.assignments[e.id] === cat.id).length;
+      const count = state.emojis.filter(e => getCategoryIds(e.id).includes(cat.id)).length;
       const btn = el('button', {
         className: 'dem-cat-tab' + (state.currentCat === cat.id ? ' dem-active' : ''),
         draggable: true,
@@ -547,8 +587,8 @@ function makeDraggableBtn(btn) {
         if (catDraggingId || !dragIds) return;
         e.preventDefault();
         btn.classList.remove('dem-drop-hover');
-        dragIds.forEach(id => { state.assignments[id] = cat.id; });
-        saveAssigns(); state.selected.clear(); dragIds = null; renderAll();
+        dragIds.forEach(id => addCategory(id, cat.id));
+        saveTags(); state.selected.clear(); dragIds = null; renderAll();
       });
 
       wrap.appendChild(btn);
@@ -569,9 +609,8 @@ function makeDraggableBtn(btn) {
     let list = ordered.filter(e => {
       if (state.search && !e.name.toLowerCase().includes(state.search) && !e.guildName.toLowerCase().includes(state.search)) return false;
       if (state.currentCat === 'all')   return true;
-      if (state.currentCat === 'uncat') return !state.assignments[e.id] && !(state.tags[e.id]?.length);
-      return state.assignments[e.id] === state.currentCat
-        || (state.tags[e.id] || []).includes(state.currentCat);
+      if (state.currentCat === 'uncat') return getCategoryIds(e.id).length === 0;
+      return getCategoryIds(e.id).includes(state.currentCat);
       });
     if      (state.sortOrder === 'name')      list.sort((a,b) => a.name.localeCompare(b.name));
     else if (state.sortOrder === 'name_desc') list.sort((a,b) => b.name.localeCompare(a.name));
@@ -586,8 +625,14 @@ function makeDraggableBtn(btn) {
     // 選択中絵文字のカテゴリ集計
     const catCounts = {};
     state.selected.forEach(id => {
-      const catId = state.assignments[id] || '__uncat__';
-      catCounts[catId] = (catCounts[catId] || 0) + 1;
+      const catIds = getCategoryIds(id);
+      if (catIds.length === 0) {
+        catCounts.__uncat__ = (catCounts.__uncat__ || 0) + 1;
+        return;
+      }
+      catIds.forEach(catId => {
+        catCounts[catId] = (catCounts[catId] || 0) + 1;
+      });
     });
     const parts = Object.entries(catCounts).map(([catId, n]) =>
       `<span class="dem-info-tag">${getCatName(catId === '__uncat__' ? null : catId)} ×${n}</span>`
@@ -634,9 +679,8 @@ function makeDraggableBtn(btn) {
 
       // カテゴリバッジ（選択中のみ表示）
       if (state.selected.has(emoji.id)) {
-        const catId   = state.assignments[emoji.id];
         const badge   = el('div', { className: 'dem-emoji-badge' });
-        badge.textContent = getCatName(catId || null);
+        badge.textContent = getMembershipLabel(emoji.id);
         item.appendChild(badge);
       }
 
@@ -661,7 +705,7 @@ function makeDraggableBtn(btn) {
           if (state.selected.has(emoji.id)) {
             if (!badge) {
               const b = el('div', { className: 'dem-emoji-badge' });
-              b.textContent = getCatName(state.assignments[emoji.id] || null);
+              b.textContent = getMembershipLabel(emoji.id);
               item.appendChild(b);
             }
           } else {
@@ -748,10 +792,10 @@ function makeDraggableBtn(btn) {
 
   function updateFooter() {
     const n   = state.selected.size;
-    const inf = $('dem-sel-info'), tag = $('dem-tag-btn'), mv = $('dem-move-btn'), ds = $('dem-desel-btn');
-    inf.textContent = n === 0 ? 'クリックで挿入 / ドラッグで並び替え・移動' : `${n}個選択中`;
+    const inf = $('dem-sel-info'), tag = $('dem-tag-btn'), tmpl = $('dem-tmpl-save-btn'), ds = $('dem-desel-btn');
+    inf.textContent = n === 0 ? 'クリックで挿入 / ドラッグで並び替え・所属追加' : `${n}個選択中`;
     tag.classList.toggle('dem-visible', n > 0);
-    mv.classList.toggle('dem-visible', n > 0);
+    tmpl.classList.toggle('dem-visible', n > 0);
     ds.classList.toggle('dem-visible', n > 0);
     renderInfoBar();
   }
@@ -786,32 +830,6 @@ function makeDraggableBtn(btn) {
     state.sortOrder = orders[(orders.indexOf(state.sortOrder)+1) % orders.length];
     $('dem-sort-btn').textContent = labels[state.sortOrder];
     renderGrid();
-  }
-
-  // ── 移動ドロップダウン ─────────────────────────────────────────────────
-  function toggleMoveDropdown() {
-    const dd = $('dem-move-dropdown');
-    dd.classList.toggle('dem-visible');
-    if (!dd.classList.contains('dem-visible')) return;
-    dd.innerHTML = '';
-    state.categories.forEach(cat => {
-      const opt = el('div', { className: 'dem-move-option' });
-      opt.textContent = cat.name;
-      opt.onclick = () => {
-        state.selected.forEach(id => { state.assignments[id] = cat.id; });
-        saveAssigns(); state.selected.clear();
-        dd.classList.remove('dem-visible'); renderAll();
-      };
-      dd.appendChild(opt);
-    });
-    const uncat = el('div', { className: 'dem-move-option' });
-    uncat.textContent = '— 未分類に戻す'; uncat.style.color = '#80848e';
-    uncat.onclick = () => {
-      state.selected.forEach(id => { delete state.assignments[id]; });
-      saveAssigns(); state.selected.clear();
-      dd.classList.remove('dem-visible'); renderAll();
-    };
-    dd.appendChild(uncat);
   }
 
   // ── カテゴリ作成 ──────────────────────────────────────────────────────
