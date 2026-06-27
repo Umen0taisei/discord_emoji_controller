@@ -28,6 +28,7 @@
   // ドラッグ中の状態（グローバル変数でシンプルに管理）
   let dragIds    = null;   // string[] | null
   // let dragTarget = null;   // 'grid' | 'cat' — どこに向かっているか
+  let modalMode = 'category';
 
   // ── ストレージ ─────────────────────────────────────────────────────────
   function loadStorage() {
@@ -212,12 +213,12 @@
   function bindEvents() {
     $('dem-close-btn').onclick    = togglePanel;
     $('dem-modal-cancel').onclick = closeModal;
-    $('dem-modal-ok').onclick     = createCategory;
+    $('dem-modal-ok').onclick     = submitModal;
     $('dem-sort-btn').onclick     = cycleSort;
     $('dem-tag-btn').onclick      = toggleTagDropdown;
-    $('dem-tmpl-save-btn').onclick = saveTemplate;
+    $('dem-tmpl-save-btn').onclick = openTemplateModal;
     $('dem-desel-btn').onclick    = () => { state.selected.clear(); renderGrid(); updateFooter(); };
-    $('dem-modal-input').onkeydown = e => { if (e.key === 'Enter') createCategory(); };
+    $('dem-modal-input').onkeydown = e => { if (e.key === 'Enter') submitModal(); };
     $('dem-search').oninput    = e => { state.search    = e.target.value.toLowerCase(); renderGrid(); };
 
     $('dem-tab-emoji').onclick = () => switchTab('emoji');
@@ -382,10 +383,12 @@ function makeDraggableBtn(btn) {
     });
   }
 
-  function saveTemplate() {
+  function openTemplateModal() {
     if (state.selected.size === 0) return;
-    const name = prompt('テンプレート名を入力:');
-    if (!name) return;
+    openModal('template');
+  }
+
+  function createTemplate(name) {
     const emojis = Array.from(state.selected)
       .map(id => state.emojis.find(e => e.id === id))
       .filter(Boolean)
@@ -404,8 +407,8 @@ function makeDraggableBtn(btn) {
     });
     saveTemplates();
     state.selected.clear();
+    closeModal();
     renderGrid(); updateFooter();
-    alert(`「${name}」を保存しました`);
   }
 
   function renderTemplates() {
@@ -596,7 +599,7 @@ function makeDraggableBtn(btn) {
 
     const addBtn = el('button', { className: 'dem-cat-add-tab' });
     addBtn.textContent = '＋ 追加';
-    addBtn.onclick = openModal;
+    addBtn.onclick = () => openModal('category');
     wrap.appendChild(addBtn);
   }
 
@@ -833,15 +836,26 @@ function makeDraggableBtn(btn) {
   }
 
   // ── カテゴリ作成 ──────────────────────────────────────────────────────
-  function openModal()  {
+  function openModal(mode = 'category')  {
+    modalMode = mode;
+    const isTemplate = mode === 'template';
+    $('dem-modal').querySelector('h3').textContent = isTemplate ? 'テンプレートを保存' : '新しいカテゴリ';
+    $('dem-modal-input').placeholder = isTemplate ? '例：朝の挨拶、定番リアクション' : '例：推し、リアクション用';
+    $('dem-modal-ok').textContent = isTemplate ? '保存' : '作成';
     $('dem-modal-bg').classList.add('dem-visible');
     $('dem-modal-input').value = '';
     setTimeout(() => $('dem-modal-input').focus(), 50);
   }
   function closeModal() { $('dem-modal-bg').classList.remove('dem-visible'); }
-  function createCategory() {
+
+  function submitModal() {
     const name = $('dem-modal-input').value.trim();
     if (!name) return;
+    if (modalMode === 'template') createTemplate(name);
+    else createCategory(name);
+  }
+
+  function createCategory(name) {
     state.categories.push({ id: 'cat_'+Date.now(), name });
     saveCats(); closeModal(); renderCats();
   }
