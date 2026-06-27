@@ -303,10 +303,8 @@
     const panel = getPanel();
     const picker = findEmojiPicker();
     if (!panel || !picker || picker.contains(panel)) return;
-    if (reactionPickerEl && reactionPickerEl !== picker) {
-      reactionPickerEl.classList.remove('dem-native-picker-muted');
-    }
-    picker.classList.add('dem-native-picker-muted');
+    unmuteNativeReactionPicker();
+    muteNativeReactionPicker(picker);
     reactionPickerEl = picker;
     if (!panelHome) panelHome = panel.parentNode || document.body;
     picker.appendChild(panel);
@@ -314,12 +312,18 @@
 
   function restorePanelHome() {
     const panel = getPanel();
-    if (reactionPickerEl) {
-      reactionPickerEl.classList.remove('dem-native-picker-muted');
-      reactionPickerEl = null;
-    }
+    unmuteNativeReactionPicker();
     if (!panel || !panelHome || panel.parentNode === panelHome) return;
     panelHome.appendChild(panel);
+  }
+
+  function muteNativeReactionPicker(picker = reactionPickerEl) {
+    picker?.classList.add('dem-native-picker-muted');
+  }
+
+  function unmuteNativeReactionPicker() {
+    reactionPickerEl?.classList.remove('dem-native-picker-muted');
+    reactionPickerEl = null;
   }
 
   function getPanel() {
@@ -1112,6 +1116,7 @@ function makeDraggableBtn(btn) {
     nativeInputValueSetter.call(searchInput, name);
     searchInput.dispatchEvent(new Event('input', { bubbles: true }));
     searchInput.focus();
+    unmuteNativeReactionPicker();
   }
 
   // ── ソート ────────────────────────────────────────────────────────────
