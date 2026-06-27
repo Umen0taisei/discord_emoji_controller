@@ -212,6 +212,7 @@
 
     const searchInput = findReactionSearchInput(picker);
     if (!searchInput) return false;
+    if (isReactionSearchInput(searchInput)) return true;
 
     const composer = findComposerInput();
     if (!composer) return true;
@@ -221,6 +222,15 @@
     const farFromComposer = Math.abs(pickerRect.bottom - composerRect.top) > 160;
     const aboveComposer = pickerRect.bottom < composerRect.top - 24;
     return farFromComposer || aboveComposer;
+  }
+
+  function isReactionSearchInput(input) {
+    const text = [
+      input.placeholder,
+      input.getAttribute('aria-label'),
+      input.getAttribute('name'),
+    ].filter(Boolean).join(' ').toLowerCase();
+    return text.includes('reaction') || text.includes('リアクション');
   }
 
   function findComposerInput() {
