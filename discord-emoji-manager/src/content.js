@@ -297,6 +297,7 @@
       <div id="dem-tmpl-list"></div>
     </div>
   `;    document.body.appendChild(panel);
+    isolatePanelEvents(panel);
 
     const modal = el('div', { id: 'dem-modal-bg' });
     modal.innerHTML = `
@@ -313,6 +314,21 @@
 
     bindEvents();
     makeDraggable(panel);
+  }
+
+  function isolatePanelEvents(panel) {
+    const stop = e => e.stopPropagation();
+    [
+      'pointerdown',
+      'pointerup',
+      'mousedown',
+      'mouseup',
+      'click',
+      'dblclick',
+      'contextmenu',
+      'touchstart',
+      'touchend',
+    ].forEach(type => panel.addEventListener(type, stop, true));
   }
 
   function el(tag, props = {}) {
