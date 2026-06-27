@@ -31,6 +31,8 @@
   let dragIds    = null;   // string[] | null
   // let dragTarget = null;   // 'grid' | 'cat' — どこに向かっているか
   let modalMode = 'category';
+  let panelHome = null;
+  let panelEl = null;
 
   // ── ストレージ ─────────────────────────────────────────────────────────
   function loadStorage() {
@@ -246,18 +248,38 @@
   }
   
   function updateReactionModeUI() {
-    const header = $('dem-header-title');
-    const panel  = $('dem-panel');
-    if (!header) return;
+    const panel = getPanel();
+    const header = panel?.querySelector('#dem-header-title');
+    if (!header || !panel) return;
     if (state.reactionMode) {
       header.textContent = '⚡ リアクション検索モード';
       panel.classList.add('dem-reaction-mode');
+      attachPanelToPicker();
       // パネルが閉じていたら自動で開く
       if (!state.panelVisible) togglePanel();
     } else {
       header.textContent = '😄 絵文字マネージャー';
       panel.classList.remove('dem-reaction-mode');
+      restorePanelHome();
     }
+  }
+
+  function attachPanelToPicker() {
+    const panel = getPanel();
+    const picker = findEmojiPicker();
+    if (!panel || !picker || picker.contains(panel)) return;
+    if (!panelHome) panelHome = panel.parentNode || document.body;
+    picker.appendChild(panel);
+  }
+
+  function restorePanelHome() {
+    const panel = getPanel();
+    if (!panel || !panelHome || panel.parentNode === panelHome) return;
+    panelHome.appendChild(panel);
+  }
+
+  function getPanel() {
+    return panelEl || $('dem-panel');
   }
 
   // ── UI構築 ────────────────────────────────────────────────────────────
@@ -268,6 +290,7 @@
     makeDraggableBtn(btn);
 
     const panel = el('div', { id: 'dem-panel', className: 'dem-hidden' });
+    panelEl = panel;
     panel.innerHTML = `
     <div id="dem-header">
       <span id="dem-header-title">⭐ 絵文字マネージャー</span>
@@ -297,7 +320,6 @@
       <div id="dem-tmpl-list"></div>
     </div>
   `;    document.body.appendChild(panel);
-    isolatePanelEvents(panel);
 
     const modal = el('div', { id: 'dem-modal-bg' });
     modal.innerHTML = `
@@ -314,21 +336,6 @@
 
     bindEvents();
     makeDraggable(panel);
-  }
-
-  function isolatePanelEvents(panel) {
-    const stop = e => e.stopPropagation();
-    [
-      'pointerdown',
-      'pointerup',
-      'mousedown',
-      'mouseup',
-      'click',
-      'dblclick',
-      'contextmenu',
-      'touchstart',
-      'touchend',
-    ].forEach(type => panel.addEventListener(type, stop, true));
   }
 
   function el(tag, props = {}) {
