@@ -20,7 +20,7 @@
   user-select: none;
 }
 
-#dem-panel.dem-hidden {
+.dem-hidden {
   display: none !important;
 }
 
@@ -219,7 +219,6 @@
   background: #2b2d31;
   border-top: 1px solid #1e1f22;
   flex-shrink: 0;
-  flex-wrap: wrap;
 }
 
 #dem-sel-info {

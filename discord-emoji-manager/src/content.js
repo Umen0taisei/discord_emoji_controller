@@ -748,8 +748,9 @@ function makeDraggableBtn(btn) {
 
   function updateFooter() {
     const n   = state.selected.size;
-    const inf = $('dem-sel-info'), mv = $('dem-move-btn'), ds = $('dem-desel-btn');
+    const inf = $('dem-sel-info'), tag = $('dem-tag-btn'), mv = $('dem-move-btn'), ds = $('dem-desel-btn');
     inf.textContent = n === 0 ? 'クリックで挿入 / ドラッグで並び替え・移動' : `${n}個選択中`;
+    tag.classList.toggle('dem-visible', n > 0);
     mv.classList.toggle('dem-visible', n > 0);
     ds.classList.toggle('dem-visible', n > 0);
     renderInfoBar();
