@@ -143,23 +143,9 @@
     let reactionPickerOpen = false;
   
     new MutationObserver(() => {
-      const picker = document.querySelector('[class*="emojiPicker"]');
+      const picker = findEmojiPicker();
   
-      // リアクションピッカーの検出
-      // リアクションピッカーはメッセージのコンテキストメニュー付近に出る
-      const isReaction = picker && (
-        document.querySelector('[class*="reactionPicker"]') ||
-        document.querySelector('[class*="reaction"][class*="picker"]') ||
-        // 位置で判定：メッセージ入力欄から遠い場所にある
-        (() => {
-          if (!picker) return false;
-          const inputEl = document.querySelector('[data-slate-editor="true"]');
-          if (!inputEl) return true; // 入力欄がなければリアクションピッカー
-          const pickerRect = picker.getBoundingClientRect();
-          const inputRect  = inputEl.getBoundingClientRect();
-          return Math.abs(pickerRect.bottom - inputRect.top) > 200;
-        })()
-      );
+      const isReaction = Boolean(picker && isReactionPicker(picker));
   
       if (picker && isReaction !== reactionPickerOpen) {
         reactionPickerOpen = isReaction;
@@ -183,6 +169,80 @@
         }, 400);
       }
     }).observe(document.body, { childList: true, subtree: true });
+  }
+
+  function findEmojiPicker() {
+    const selectors = [
+      '[class*="emojiPicker"]',
+      '[class*="emojiPickerHasTabWrapper"]',
+      '[class*="emojiPickerInExpressionPicker"]',
+      '[class*="contentWrapper"]',
+      '[role="dialog"]',
+      '[aria-label*="絵文字"]',
+      '[aria-label*="リアクション"]',
+      '[aria-label*="emoji" i]',
+      '[aria-label*="reaction" i]',
+    ];
+    return Array.from(document.querySelectorAll(selectors.join(',')))
+      .filter(el => !el.closest('#dem-panel') && isVisible(el))
+      .find(isEmojiPickerElement)
+      || null;
+  }
+
+  function isEmojiPickerElement(el) {
+    const className = typeof el.className === 'string' ? el.className : '';
+    const label = el.getAttribute('aria-label') || '';
+    const marker = `${className} ${label}`.toLowerCase();
+    const hasPickerLabel = marker.includes('emoji')
+      || marker.includes('絵文字')
+      || marker.includes('reaction')
+      || marker.includes('リアクション');
+    const hasEmojiItem = Boolean(el.querySelector('[class*="emojiItem"] img, [class*="emoji-item"] img, [data-type="emoji"] img'));
+    return (hasPickerLabel || hasEmojiItem) && (findReactionSearchInput(el) || hasEmojiItem);
+  }
+
+  function isReactionPicker(picker) {
+    if (
+      document.querySelector('[class*="reactionPicker"]') ||
+      document.querySelector('[class*="reaction"][class*="picker"]') ||
+      picker.closest('[class*="reaction"]')
+    ) return true;
+
+    const searchInput = findReactionSearchInput(picker);
+    if (!searchInput) return false;
+
+    const composer = findComposerInput();
+    if (!composer) return true;
+
+    const pickerRect = picker.getBoundingClientRect();
+    const composerRect = composer.getBoundingClientRect();
+    const farFromComposer = Math.abs(pickerRect.bottom - composerRect.top) > 160;
+    const aboveComposer = pickerRect.bottom < composerRect.top - 24;
+    return farFromComposer || aboveComposer;
+  }
+
+  function findComposerInput() {
+    return document.querySelector('[data-slate-editor="true"]')
+      || document.querySelector('[contenteditable="true"][role="textbox"]')
+      || document.querySelector('div[contenteditable="true"]');
+  }
+
+  function findReactionSearchInput(root = document) {
+    const searchSelectors = [
+      'input[type="text"]',
+      'input[placeholder]',
+      '[class*="search"] input',
+    ];
+    for (const sel of searchSelectors) {
+      const input = root.querySelector(sel);
+      if (input && isVisible(input)) return input;
+    }
+    return null;
+  }
+
+  function isVisible(el) {
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
   }
   
   function updateReactionModeUI() {
@@ -938,9 +998,7 @@ function makeDraggableBtn(btn) {
       return;
     }
     // 通常モード → テキスト入力欄に挿入
-    const input = document.querySelector('[data-slate-editor="true"]')
-      || document.querySelector('[contenteditable="true"][role="textbox"]')
-      || document.querySelector('div[contenteditable="true"]');
+    const input = findComposerInput();
     if (!input) return;
     input.focus();
     const text = emoji.unicode ? emoji.url + ' ' : `:${emoji.name}: `;
@@ -960,17 +1018,8 @@ function makeDraggableBtn(btn) {
   }
   
   function insertToReactionPicker(emoji) {
-    // リアクションピッカーの検索欄を探す
-    const searchSelectors = [
-      '[class*="emojiPicker"] input[type="text"]',
-      '[class*="emojiPicker"] input[placeholder]',
-      '[class*="search"] input',
-    ];
-    let searchInput = null;
-    for (const sel of searchSelectors) {
-      searchInput = document.querySelector(sel);
-      if (searchInput) break;
-    }
+    const picker = findEmojiPicker();
+    const searchInput = picker ? findReactionSearchInput(picker) : findReactionSearchInput();
     if (!searchInput) return;
   
     // 検索欄に絵文字名を入力してReactのイベントを発火
