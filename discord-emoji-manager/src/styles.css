@@ -587,3 +587,11 @@
   opacity: 0.45;
 }
  
+/* ── リアクションモード ── */
+#dem-panel.dem-reaction-mode #dem-header {
+  background: #2d3b55;
+  border-bottom-color: #5865f2;
+}
+#dem-panel.dem-reaction-mode #dem-header-title {
+  color: #7289da;
+}

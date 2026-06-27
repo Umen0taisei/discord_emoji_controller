@@ -10,6 +10,7 @@
   const S_TAGS      = 'dem_tags';
   const S_TEMPLATES = 'dem_templates';
 
+  // 状態指定
   let state = {
     categories:   [],
     assignments:  {},   // emojiId -> categoryId
@@ -23,6 +24,7 @@
     tags:         {},   // emojiId -> categoryId[]
     templates:    [],   // { id, name, emojis: (id | emoji)[] }[]
     activeTab:    'emoji',
+    reactionMode: false,  // リアクションピッカーが開いているか
   };
 
   // ドラッグ中の状態（グローバル変数でシンプルに管理）
@@ -138,15 +140,64 @@
   }
 
   function watchEmojiPicker() {
+    let reactionPickerOpen = false;
+  
     new MutationObserver(() => {
-      if (!document.querySelector('[class*="emojiPicker"]')) return;
-      setTimeout(() => {
-        if (mergeEmojis(collectCustomFromDOM())) {
-          saveOrder();
-          if (state.panelVisible) renderGrid();
-        }
-      }, 400);
+      const picker = document.querySelector('[class*="emojiPicker"]');
+  
+      // リアクションピッカーの検出
+      // リアクションピッカーはメッセージのコンテキストメニュー付近に出る
+      const isReaction = picker && (
+        document.querySelector('[class*="reactionPicker"]') ||
+        document.querySelector('[class*="reaction"][class*="picker"]') ||
+        // 位置で判定：メッセージ入力欄から遠い場所にある
+        (() => {
+          if (!picker) return false;
+          const inputEl = document.querySelector('[data-slate-editor="true"]');
+          if (!inputEl) return true; // 入力欄がなければリアクションピッカー
+          const pickerRect = picker.getBoundingClientRect();
+          const inputRect  = inputEl.getBoundingClientRect();
+          return Math.abs(pickerRect.bottom - inputRect.top) > 200;
+        })()
+      );
+  
+      if (picker && isReaction !== reactionPickerOpen) {
+        reactionPickerOpen = isReaction;
+        state.reactionMode = isReaction;
+        updateReactionModeUI();
+      }
+  
+      if (!picker && reactionPickerOpen) {
+        reactionPickerOpen = false;
+        state.reactionMode = false;
+        updateReactionModeUI();
+      }
+  
+      // カスタム絵文字の収集
+      if (picker) {
+        setTimeout(() => {
+          if (mergeEmojis(collectCustomFromDOM())) {
+            saveOrder();
+            if (state.panelVisible) renderGrid();
+          }
+        }, 400);
+      }
     }).observe(document.body, { childList: true, subtree: true });
+  }
+  
+  function updateReactionModeUI() {
+    const header = $('dem-header-title');
+    const panel  = $('dem-panel');
+    if (!header) return;
+    if (state.reactionMode) {
+      header.textContent = '⚡ リアクション検索モード';
+      panel.classList.add('dem-reaction-mode');
+      // パネルが閉じていたら自動で開く
+      if (!state.panelVisible) togglePanel();
+    } else {
+      header.textContent = '😄 絵文字マネージャー';
+      panel.classList.remove('dem-reaction-mode');
+    }
   }
 
   // ── UI構築 ────────────────────────────────────────────────────────────
@@ -881,6 +932,12 @@ function makeDraggableBtn(btn) {
 
   // ── 絵文字挿入 ────────────────────────────────────────────────────────
   function insertEmoji(emoji) {
+    // リアクションモードのとき → ピッカーの検索欄に入力
+    if (state.reactionMode) {
+      insertToReactionPicker(emoji);
+      return;
+    }
+    // 通常モード → テキスト入力欄に挿入
     const input = document.querySelector('[data-slate-editor="true"]')
       || document.querySelector('[contenteditable="true"][role="textbox"]')
       || document.querySelector('div[contenteditable="true"]');
@@ -900,6 +957,30 @@ function makeDraggableBtn(btn) {
       if (!input.textContent.includes(text.trim()))
         document.execCommand('insertText', false, text);
     }, 50);
+  }
+  
+  function insertToReactionPicker(emoji) {
+    // リアクションピッカーの検索欄を探す
+    const searchSelectors = [
+      '[class*="emojiPicker"] input[type="text"]',
+      '[class*="emojiPicker"] input[placeholder]',
+      '[class*="search"] input',
+    ];
+    let searchInput = null;
+    for (const sel of searchSelectors) {
+      searchInput = document.querySelector(sel);
+      if (searchInput) break;
+    }
+    if (!searchInput) return;
+  
+    // 検索欄に絵文字名を入力してReactのイベントを発火
+    const name = emoji.name;
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype, 'value'
+    ).set;
+    nativeInputValueSetter.call(searchInput, name);
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    searchInput.focus();
   }
 
   // ── ソート ────────────────────────────────────────────────────────────
